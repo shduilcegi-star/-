@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6학년 수학: 원의 넓이 시각화</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Pretendard', sans-serif;
+        }
+        canvas {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="max-w-4xl w-full bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">원의 넓이 구하기</h1>
+        <p class="text-gray-500 text-center mb-8">원을 잘게 나누어 직사각형으로 만들어 봅시다.</p>
+
+        <div class="flex flex-col lg:flex-row gap-8 items-center">
+            <!-- Canvas Area -->
+            <div class="relative w-full aspect-square max-w-[500px]">
+                <canvas id="visualizer" width="500" height="500" class="w-full h-full border border-gray-50"></canvas>
+            </div>
+
+            <!-- Controls Area -->
+            <div class="flex-1 w-full space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        조각 개수: <span id="segmentCountText" class="text-blue-600">8</span>개
+                    </label>
+                    <input type="range" id="segments" min="4" max="128" step="2" value="8" 
+                           class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        재배열 진행도
+                    </label>
+                    <input type="range" id="progress" min="0" max="1" step="0.01" value="0" 
+                           class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500">
+                </div>
+
+                <div class="p-4 bg-blue-50 rounded-xl space-y-3">
+                    <p class="text-sm text-blue-800 font-medium">💡 원리 이해하기</p>
+                    <ul class="text-sm text-blue-700 space-y-1">
+                        <li>• 원을 잘게 나눌수록 <strong>직사각형</strong>에 가까워집니다.</li>
+                        <li>• 직사각형의 가로 = <strong>원주의 1/2</strong> ($\pi r$)</li>
+                        <li>• 직사각형의 세로 = <strong>반지름</strong> ($r$)</li>
+                        <li class="pt-2 font-bold text-center text-base border-t border-blue-200">
+                            넓이 = $\pi \times r \times r = \pi r^2$
+                        </li>
+                    </ul>
+                </div>
+                
+                <button id="animateBtn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors">
+                    애니메이션 재생
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const segmentInput = document.getElementById('segments');
+        const progressInput = document.getElementById('progress');
+        const segmentText = document.getElementById('segmentCountText');
+        const animateBtn = document.getElementById('animateBtn');
+
+        const COLORS = {
+            up: '#BAE6FD', // 파스텔 하늘색
+            down: '#FEF08A' // 파스텔 노란색
+        };
+
+        const centerX = 250;
+        const centerY = 150;
+        const radius = 100;
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const n = parseInt(segmentInput.value);
+            const progress = parseFloat(progressInput.value);
+            segmentText.innerText = n;
+
+            const anglePerSegment = (Math.PI * 2) / n;
+            const rectWidth = (Math.PI * radius);
+            const segmentBase = rectWidth / (n / 2);
+
+            for (let i = 0; i < n; i++) {
+                const isUp = i % 2 === 0;
+                ctx.save();
+
+                // 원 상태의 위치
+                const startAngle = i * anglePerSegment;
+                const midAngle = startAngle + anglePerSegment / 2;
+
+                // 직사각형 상태의 위치
+                // 아래쪽 조각들은 x가 0, 1, 2... 순서, 위쪽 조각들도 사이사이에 배치
+                const rectIndex = Math.floor(i / 2);
+                const rectX = 250 - (rectWidth / 2) + (rectIndex * segmentBase) + (isUp ? 0 : segmentBase / 2);
+                const rectY = 400;
+
+                // 보간 (Interpolation)
+                const currentX = centerX * (1 - progress) + rectX * progress;
+                const currentY = centerY * (1 - progress) + rectY * progress;
+                const currentRotation = (midAngle - Math.PI / 2) * (1 - progress) + (isUp ? 0 : Math.PI) * progress;
+
+                ctx.translate(currentX, currentY);
+                ctx.rotate(currentRotation);
+
+                // 부채꼴 그리기
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                
+                // 중심에서 반지름 방향으로 부채꼴의 호를 그림
+                const halfAngle = anglePerSegment / 2;
+                ctx.arc(0, 0, radius, -halfAngle, halfAngle);
+                
+                ctx.closePath();
+                ctx.fillStyle = isUp ? COLORS.up : COLORS.down;
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            // 가이드 텍스트 표시 (완료 시)
+            if (progress > 0.8) {
+                ctx.fillStyle = '#475569';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.globalAlpha = (progress - 0.8) * 5;
+                ctx.fillText('가로 = 원주의 1/2 (πr)', 250, 430);
+                
+                ctx.save();
+                ctx.translate(250 - rectWidth/2 - 20, 400 - radius/2);
+                ctx.rotate(-Math.PI/2);
+                ctx.fillText('세로 = 반지름 (r)', 0, 0);
+                ctx.restore();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function update() {
+            draw();
+        }
+
+        segmentInput.oninput = update;
+        progressInput.oninput = update;
+
+        let animating = false;
+        animateBtn.onclick = () => {
+            if (animating) return;
+            animating = true;
+            let start = null;
+            const duration = 1500;
+            const initialProgress = parseFloat(progressInput.value);
+            const targetProgress = initialProgress > 0.5 ? 0 : 1;
+
+            function step(timestamp) {
+                if (!start) start = timestamp;
+                const elapsed = timestamp - start;
+                const p = Math.min(elapsed / duration, 1);
+                
+                // Ease-in-out
+                const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+                
+                progressInput.value = initialProgress + (targetProgress - initialProgress) * ease;
+                draw();
+
+                if (p < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    animating = false;
+                    animateBtn.innerText = targetProgress === 1 ? "원 상태로 되돌리기" : "애니메이션 재생";
+                }
+            }
+            window.requestAnimationFrame(step);
+        };
+
+        window.onload = draw;
+    </script>
+</body>
+</html>
